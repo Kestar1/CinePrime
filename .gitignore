@@ -4,3 +4,4 @@ obj/
 *.user
 *.suo
 *.vsidx
+/CinePrime.BLL/CinePrime.BLL.csproj

@@ -69,10 +69,10 @@ namespace CinePrime.UI.Forms
                 RowCount = 12,
                 Padding = new Padding(0)
             };
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
             for (var i = 1; i <= 9; i++)
             {
-                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             }
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
@@ -82,22 +82,41 @@ namespace CinePrime.UI.Forms
                 Text = "CinePrime",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(28, 0, 0, 0),
-                Font = new Font(ThemeManager.ButtonFont.FontFamily, 13, FontStyle.Bold),
+                Padding = new Padding(30, 0, 0, 0),
+                Font = new Font(ThemeManager.ButtonFont.FontFamily, 15, FontStyle.Bold),
                 Tag = "accent-text",
                 BackColor = Color.Transparent
             };
             layout.Controls.Add(brand, 0, 0);
 
-            AddNav(layout, 1, "Dashboard", ShowDashboard);
-            AddNav(layout, 2, "Movies", () => new MoviesForm(_services).ShowDialog(this));
-            AddNav(layout, 3, "Halls", () => new HallsForm(_services).ShowDialog(this));
-            AddNav(layout, 4, "Schedule", () => new ScheduleForm(_services).ShowDialog(this));
-            AddNav(layout, 5, "Reservations", () => new ReservationsForm(_services).ShowDialog(this));
-            AddNav(layout, 6, "Products", () => new ProductsForm(_services).ShowDialog(this));
-            AddNav(layout, 7, "Users", ApplicationSession.IsAdmin ? () => new UsersForm(_services).ShowDialog(this) : null);
-            AddNav(layout, 8, "Reports", ShowReports);
-            AddNav(layout, 9, "Settings", ApplicationSession.IsAdmin ? () => new SettingsForm(_services).ShowDialog(this) : null);
+            var row = 1;
+            AddNav(layout, row++, "Dashboard", ShowDashboard);
+            AddNav(layout, row++, "Movies", () => new MoviesForm(_services).ShowDialog(this));
+            if (ApplicationSession.IsAdmin)
+            {
+                AddNav(layout, row++, "Halls", () => new HallsForm(_services).ShowDialog(this));
+            }
+            AddNav(layout, row++, "Schedule", () => new ScheduleForm(_services).ShowDialog(this));
+            AddNav(layout, row++, "Reservations", () => new ReservationsForm(_services).ShowDialog(this));
+            AddNav(layout, row++, "Products", () =>
+            {
+                if (ApplicationSession.IsAdmin)
+                {
+                    new ProductsForm(_services).ShowDialog(this);
+                    return;
+                }
+
+                new OperatorProductsForm(_services).ShowDialog(this);
+            });
+            if (ApplicationSession.IsAdmin)
+            {
+                AddNav(layout, row++, "Users", () => new UsersForm(_services).ShowDialog(this));
+            }
+            AddNav(layout, row++, "Reports", ShowReports);
+            if (ApplicationSession.IsAdmin)
+            {
+                AddNav(layout, row++, "Settings", () => new SettingsForm(_services).ShowDialog(this));
+            }
             AddNav(layout, 11, "Logout", Close);
 
             sidebar.Controls.Add(layout);
@@ -115,7 +134,7 @@ namespace CinePrime.UI.Forms
                 FlatStyle = FlatStyle.Flat,
                 Font = ThemeManager.CaptionFont,
                 Margin = new Padding(0),
-                Padding = new Padding(18, 0, 0, 0),
+                Padding = new Padding(20, 0, 0, 0),
                 Enabled = action != null,
                 Cursor = action == null ? Cursors.Default : Cursors.Hand
             };
@@ -229,7 +248,7 @@ namespace CinePrime.UI.Forms
             {
                 var active = pair.Key == _activePage;
                 pair.Value.Tag = active ? "nav-active" : "nav";
-                pair.Value.BackColor = active ? ColorTranslator.FromHtml("#3B080D") : ColorTranslator.FromHtml("#07080D");
+                pair.Value.BackColor = active ? ColorTranslator.FromHtml("#4A070D") : ColorTranslator.FromHtml("#07080D");
                 pair.Value.ForeColor = active ? Color.White : ThemeManager.MutedTextColor;
             }
         }
@@ -399,12 +418,26 @@ namespace CinePrime.UI.Forms
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 8, 0, 8) };
-            var exportHtml = new PremiumButton { Text = "Export HTML", Width = 150, Height = 42 };
-            exportHtml.Click += (_, __) => ExportReport("html");
-            var exportTxt = new PremiumButton { Text = "Export TXT", Variant = PremiumButtonVariant.Secondary, Width = 150, Height = 42, Margin = new Padding(10, 0, 0, 0) };
-            exportTxt.Click += (_, __) => ExportReport("txt");
-            toolbar.Controls.Add(exportHtml);
-            toolbar.Controls.Add(exportTxt);
+            if (ApplicationSession.IsAdmin)
+            {
+                var exportHtml = new PremiumButton { Text = "Export HTML", Width = 150, Height = 42 };
+                exportHtml.Click += (_, __) => ExportReport("html");
+                var exportTxt = new PremiumButton { Text = "Export TXT", Variant = PremiumButtonVariant.Secondary, Width = 150, Height = 42, Margin = new Padding(10, 0, 0, 0) };
+                exportTxt.Click += (_, __) => ExportReport("txt");
+                toolbar.Controls.Add(exportHtml);
+                toolbar.Controls.Add(exportTxt);
+            }
+            else
+            {
+                toolbar.Controls.Add(new Label
+                {
+                    Text = "Export disponibil doar pentru administrator",
+                    AutoSize = true,
+                    Font = ThemeManager.CaptionFont,
+                    TextAlign = ContentAlignment.MiddleRight,
+                    Margin = new Padding(0, 12, 0, 0)
+                });
+            }
             root.Controls.Add(toolbar, 0, 0);
 
             var summary = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(0, 10, 0, 10) };
