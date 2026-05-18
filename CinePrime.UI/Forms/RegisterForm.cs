@@ -23,7 +23,11 @@ namespace CinePrime.UI.Forms
             MinimumSize = new Size(900, 640);
             Padding = new Padding(0);
 
-            var background = new CinematicBackgroundPanel { Dock = DockStyle.Fill };
+            var background = new CinematicBackgroundPanel
+            {
+                Dock = DockStyle.Fill,
+                BackgroundPhoto = BackgroundAssets.GetAuthBackground()
+            };
             var outer = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -73,6 +77,7 @@ namespace CinePrime.UI.Forms
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            brandPanel.Controls.Add(CreateLogoPanel(), 0, 0);
             brandPanel.Controls.Add(new Label
             {
                 Text = "CinePrime",
@@ -80,23 +85,23 @@ namespace CinePrime.UI.Forms
                 Dock = DockStyle.Fill,
                 Font = new Font(ThemeManager.TitleFont.FontFamily, 34, FontStyle.Bold),
                 TextAlign = ContentAlignment.BottomLeft
-            }, 0, 0);
+            }, 0, 1);
             brandPanel.Controls.Add(new Label
             {
                 Text = "Creeaza un cont nou pentru operator",
                 Dock = DockStyle.Fill,
                 Font = new Font(ThemeManager.BodyFont.FontFamily, 13, FontStyle.Regular),
                 TextAlign = ContentAlignment.TopLeft
-            }, 0, 1);
-            brandPanel.Controls.Add(new Label
-            {
-                Text = "Rol implicit: operator",
-                Dock = DockStyle.Fill,
-                Font = ThemeManager.CaptionFont,
-                TextAlign = ContentAlignment.MiddleLeft
             }, 0, 2);
-            brandPanel.Controls.Add(CreateRegisterStat("Validare date", "Email unic si parola minima 6 caractere"), 0, 3);
-            brandPanel.Controls.Add(CreateRegisterStat("Acces rapid", "Dupa creare poti reveni la autentificare"), 0, 4);
+            brandPanel.Controls.Add(new Label
+                {
+                    Text = "Rol implicit: operator",
+                    Dock = DockStyle.Fill,
+                    Font = ThemeManager.CaptionFont,
+                    TextAlign = ContentAlignment.MiddleLeft
+            }, 0, 3);
+            brandPanel.Controls.Add(CreateRegisterStat("Validare date", "Email unic si parola minima 6 caractere"), 0, 4);
+            brandPanel.Controls.Add(CreateRegisterStat("Acces rapid", "Dupa creare poti reveni la autentificare"), 0, 5);
 
             var form = new TableLayoutPanel
             {
@@ -200,26 +205,65 @@ namespace CinePrime.UI.Forms
             return panel;
         }
 
+        private static Control CreateLogoPanel()
+        {
+            var logoPanel = new Panel { Width = 52, Height = 52, BackColor = Color.Transparent, Margin = new Padding(0, 0, 0, 8), Tag = "transparent" };
+            logoPanel.Paint += (_, pe) =>
+            {
+                pe.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                var rect = new Rectangle(2, 2, 48, 48);
+                using (var grad = new System.Drawing.Drawing2D.LinearGradientBrush(
+                           rect,
+                           ColorTranslator.FromHtml("#FF1F2D"),
+                           ColorTranslator.FromHtml("#7A000A"),
+                           135f))
+                using (var pen = new Pen(Color.FromArgb(80, Color.White), 1.5f))
+                {
+                    pe.Graphics.FillEllipse(grad, rect);
+                    pe.Graphics.DrawEllipse(pen, rect);
+                }
+
+                TextRenderer.DrawText(
+                    pe.Graphics,
+                    "CP",
+                    new Font(ThemeManager.ButtonFont.FontFamily, 13, FontStyle.Bold),
+                    rect,
+                    Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            };
+            return logoPanel;
+        }
+
         private void OnCreateAccountClick(object sender, EventArgs e)
         {
             if (!string.Equals(_passwordTextBox.Text, _confirmPasswordTextBox.Text, StringComparison.Ordinal))
             {
-                MessageBox.Show("Parolele nu coincid.", "Eroare");
+                UiFeedback.ShowWarning(this, "Parolele nu coincid.");
                 return;
             }
 
-            var result = _services.AuthService.Register(new RegisterUserRequest
+            try
             {
-                FullName = _fullNameTextBox.Text,
-                Email = _emailTextBox.Text,
-                Password = _passwordTextBox.Text,
-                Role = "operator"
-            });
+                var result = _services.AuthService.Register(new RegisterUserRequest
+                {
+                    FullName = _fullNameTextBox.Text,
+                    Email = _emailTextBox.Text,
+                    Password = _passwordTextBox.Text,
+                    Role = "operator"
+                });
 
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            if (result.Success)
+                if (result.Success)
+                {
+                    ToastNotification.Show(this, result.Message, ToastType.Success);
+                    Close();
+                    return;
+                }
+
+                UiFeedback.ShowError(this, result.Message);
+            }
+            catch (Exception ex)
             {
-                Close();
+                UiFeedback.ShowException(this, ex, "Contul nu a putut fi creat.");
             }
         }
     }

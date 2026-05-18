@@ -112,18 +112,28 @@ namespace CinePrime.UI.Forms
             var product = (_productComboBox.SelectedItem as ProductOption)?.Product;
             if (product == null)
             {
-                MessageBox.Show("Nu exista produse disponibile.", "Info");
+                UiFeedback.ShowInfo(this, "Nu exista produse disponibile.");
                 return;
             }
 
-            var result = _services.ProductService.QuickSale(product.Id, (int)_quantityInput.Value, _paymentComboBox.Text);
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            if (result.Success)
+            try
             {
-                _productComboBox.DataSource = BuildOptions();
-                UpdateTotal();
-                DialogResult = DialogResult.OK;
-                Close();
+                var result = _services.ProductService.QuickSale(product.Id, (int)_quantityInput.Value, _paymentComboBox.Text);
+                if (result.Success)
+                {
+                    ToastNotification.Show(this, result.Message, ToastType.Success);
+                    _productComboBox.DataSource = BuildOptions();
+                    UpdateTotal();
+                    DialogResult = DialogResult.OK;
+                    Close();
+                    return;
+                }
+
+                UiFeedback.ShowError(this, result.Message);
+            }
+            catch (Exception ex)
+            {
+                UiFeedback.ShowException(this, ex, "Vanzarea rapida nu a putut fi inregistrata.");
             }
         }
 

@@ -11,4 +11,10 @@
     <ProjectReference Include="..\CinePrime.BLL\CinePrime.BLL.csproj" />
     <ProjectReference Include="..\CinePrime.Common\CinePrime.Common.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\cinema-auth-background.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

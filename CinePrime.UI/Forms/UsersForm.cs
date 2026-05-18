@@ -29,7 +29,6 @@ namespace CinePrime.UI.Forms
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new System.Drawing.Size(980, 640);
             Padding = new Padding(22);
-            ThemeManager.Bind(this);
 
             if (!ApplicationSession.IsAdmin)
             {
@@ -165,6 +164,7 @@ namespace CinePrime.UI.Forms
             outer.Controls.Add(root, 0, 0);
             Controls.Add(outer);
 
+            ThemeManager.Bind(this);
             RefreshGrid();
         }
 
@@ -183,59 +183,90 @@ namespace CinePrime.UI.Forms
 
         private void OnAddUserClick(object sender, EventArgs e)
         {
-            var request = new RegisterUserRequest
+            try
             {
-                FullName = _fullNameTextBox.Text,
-                Email = _emailTextBox.Text,
-                Password = _passwordTextBox.Text,
-                Role = _roleComboBox.SelectedItem?.ToString() ?? Constants.RoleOperator
-            };
+                var request = new RegisterUserRequest
+                {
+                    FullName = _fullNameTextBox.Text,
+                    Email = _emailTextBox.Text,
+                    Password = _passwordTextBox.Text,
+                    Role = _roleComboBox.SelectedItem?.ToString() ?? Constants.RoleOperator
+                };
 
-            var result = _services.AuthService.Register(request);
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            if (!result.Success)
-            {
-                return;
+                var result = _services.AuthService.Register(request);
+                if (!result.Success)
+                {
+                    UiFeedback.ShowError(this, result.Message);
+                    return;
+                }
+
+                ToastNotification.Show(this, result.Message, ToastType.Success);
+                _fullNameTextBox.Text = string.Empty;
+                _emailTextBox.Text = string.Empty;
+                _passwordTextBox.Text = string.Empty;
+                _roleComboBox.SelectedIndex = 0;
+                RefreshGrid();
             }
-
-            _fullNameTextBox.Text = string.Empty;
-            _emailTextBox.Text = string.Empty;
-            _passwordTextBox.Text = string.Empty;
-            _roleComboBox.SelectedIndex = 0;
-            RefreshGrid();
+            catch (Exception ex)
+            {
+                UiFeedback.ShowException(this, ex, "Utilizatorul nu a putut fi creat.");
+            }
         }
 
         private void OnUpdateUserClick(object sender, EventArgs e)
         {
             if (_selectedUserId == 0)
             {
-                MessageBox.Show("Selecteaza un utilizator.", "Info");
+                UiFeedback.ShowInfo(this, "Selecteaza un utilizator.");
                 return;
             }
 
-            var result = _services.UserService.UpdateUser(
-                _selectedUserId,
-                _fullNameTextBox.Text,
-                _emailTextBox.Text,
-                _roleComboBox.SelectedItem?.ToString() ?? Constants.RoleOperator,
-                _statusComboBox.SelectedItem?.ToString() ?? Constants.StatusActive);
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            RefreshGrid();
+            try
+            {
+                var result = _services.UserService.UpdateUser(
+                    _selectedUserId,
+                    _fullNameTextBox.Text,
+                    _emailTextBox.Text,
+                    _roleComboBox.SelectedItem?.ToString() ?? Constants.RoleOperator,
+                    _statusComboBox.SelectedItem?.ToString() ?? Constants.StatusActive);
+                if (result.Success)
+                {
+                    ToastNotification.Show(this, result.Message, ToastType.Success);
+                    RefreshGrid();
+                    return;
+                }
+
+                UiFeedback.ShowError(this, result.Message);
+            }
+            catch (Exception ex)
+            {
+                UiFeedback.ShowException(this, ex, "Utilizatorul nu a putut fi actualizat.");
+            }
         }
 
         private void OnResetPasswordClick(object sender, EventArgs e)
         {
             if (_selectedUserId == 0)
             {
-                MessageBox.Show("Selecteaza un utilizator.", "Info");
+                UiFeedback.ShowInfo(this, "Selecteaza un utilizator.");
                 return;
             }
 
-            var result = _services.UserService.ResetPassword(_selectedUserId, _passwordTextBox.Text);
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            if (result.Success)
+            try
             {
-                _passwordTextBox.Text = string.Empty;
+                var result = _services.UserService.ResetPassword(_selectedUserId, _passwordTextBox.Text);
+                if (result.Success)
+                {
+                    ToastNotification.Show(this, result.Message, ToastType.Success);
+                    _passwordTextBox.Text = string.Empty;
+                    return;
+                }
+
+                UiFeedback.ShowError(this, result.Message);
+            }
+            catch (Exception ex)
+            {
+                UiFeedback.ShowException(this, ex, "Parola nu a putut fi resetata.");
             }
         }
 
@@ -243,7 +274,7 @@ namespace CinePrime.UI.Forms
         {
             if (_selectedUserId == 0)
             {
-                MessageBox.Show("Selecteaza un utilizator.", "Info");
+                UiFeedback.ShowInfo(this, "Selecteaza un utilizator.");
                 return;
             }
 
@@ -253,9 +284,22 @@ namespace CinePrime.UI.Forms
                 return;
             }
 
-            var result = _services.UserService.DeleteUser(_selectedUserId);
-            MessageBox.Show(result.Message, result.Success ? "Succes" : "Eroare");
-            RefreshGrid();
+            try
+            {
+                var result = _services.UserService.DeleteUser(_selectedUserId);
+                if (result.Success)
+                {
+                    ToastNotification.Show(this, result.Message, ToastType.Warning);
+                    RefreshGrid();
+                    return;
+                }
+
+                UiFeedback.ShowError(this, result.Message);
+            }
+            catch (Exception ex)
+            {
+                UiFeedback.ShowException(this, ex, "Utilizatorul nu a putut fi dezactivat.");
+            }
         }
 
         private void LoadSelectedUser()

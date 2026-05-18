@@ -48,7 +48,14 @@ namespace CinePrime.UI.Forms
             Controls.Add(shell);
 
             ThemeManager.Bind(this);
-            ShowDashboard();
+            if (ApplicationSession.IsAdmin)
+            {
+                ShowDashboard();
+            }
+            else
+            {
+                ShowOperatorHome();
+            }
             StartClock();
             StartAutoRefresh();
         }
@@ -90,7 +97,7 @@ namespace CinePrime.UI.Forms
             layout.Controls.Add(brand, 0, 0);
 
             var row = 1;
-            AddNav(layout, row++, "Dashboard", ShowDashboard);
+            AddNav(layout, row++, ApplicationSession.IsAdmin ? "Dashboard" : "Home", ApplicationSession.IsAdmin ? (Action)ShowDashboard : ShowOperatorHome);
             AddNav(layout, row++, "Movies", () => new MoviesForm(_services).ShowDialog(this));
             if (ApplicationSession.IsAdmin)
             {
@@ -115,7 +122,7 @@ namespace CinePrime.UI.Forms
             AddNav(layout, row++, "Reports", ShowReports);
             if (ApplicationSession.IsAdmin)
             {
-                AddNav(layout, row++, "Settings", () => new SettingsForm(_services).ShowDialog(this));
+                AddNav(layout, row++, "Settings", OpenSettings);
             }
             AddNav(layout, 11, "Logout", Close);
 
@@ -190,18 +197,39 @@ namespace CinePrime.UI.Forms
                 BackColor = Color.Transparent
             };
             header.Controls.Add(_pageTitleLabel, 0, 0);
-            var rightHeader = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Tag = "transparent" };
-            rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+            var rightHeader = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 1, Tag = "transparent" };
             rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
+            rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+            rightHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
             rightHeader.Controls.Add(new Label
             {
                 Text = "CinePrime",
                 Tag = "accent-text",
                 Dock = DockStyle.Fill,
-                Font = new Font(ThemeManager.TitleFont.FontFamily, 19, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font(ThemeManager.TitleFont.FontFamily, 15, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleRight,
                 BackColor = Color.Transparent
-            }, 0, 0);
+            }, 1, 0);
+            var avatar = new UserAvatarBadge
+            {
+                Dock = DockStyle.Fill,
+                Initial = ApplicationSession.CurrentUser?.FullName ?? "A",
+                Margin = new Padding(0)
+            };
+            rightHeader.Controls.Add(avatar, 2, 0);
+            var userLabel = new Label
+            {
+                Text = ApplicationSession.CurrentUser?.FullName ?? string.Empty,
+                Dock = DockStyle.Fill,
+                Font = ThemeManager.CaptionFont,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(8, 0, 0, 0),
+                BackColor = Color.Transparent,
+                AutoEllipsis = true
+            };
+            rightHeader.Controls.Add(userLabel, 3, 0);
             _headerInfoLabel = new Label
             {
                 Dock = DockStyle.Fill,
@@ -210,9 +238,77 @@ namespace CinePrime.UI.Forms
                 BackColor = Color.Transparent
             };
             UpdateHeaderClock();
-            rightHeader.Controls.Add(_headerInfoLabel, 1, 0);
+            rightHeader.Controls.Add(_headerInfoLabel, 4, 0);
             header.Controls.Add(rightHeader, 1, 0);
             return header;
+        }
+
+        private void ShowOperatorHome()
+        {
+            _activePage = ApplicationSession.IsAdmin ? "Dashboard" : "Home";
+            _pageTitleLabel.Text = ApplicationSession.IsAdmin ? "Dashboard" : "Home - Operator";
+            SetContent(CreateOperatorHomeContent());
+            ApplyNavStyle();
+        }
+
+        private Control CreateOperatorHomeContent()
+        {
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+                Padding = new Padding(0)
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 220));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var kpis = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, Padding = new Padding(0, 18, 0, 14) };
+            for (var i = 0; i < 4; i++) kpis.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+
+            kpis.Controls.Add(CreateKpiCard("Vanzari bilete azi", GetTicketSalesToday().ToString("0.00") + " MDL", "Rezervari confirmate", "+8%"), 0, 0);
+            kpis.Controls.Add(CreateKpiCard("Produse vandute azi", GetProductSalesToday().ToString("0.00") + " MDL", "Snack & Drink", "+3%"), 1, 0);
+            kpis.Controls.Add(CreateKpiCard("Ocupare saptamanala", GetWeeklyOccupancy().ToString("0") + "%", "Locuri rezervate", "+5%"), 2, 0);
+            kpis.Controls.Add(CreateKpiCard("Top film", GetTopMovieTitle(), "Cele mai multe vizualizari"), 3, 0);
+            root.Controls.Add(kpis, 0, 0);
+
+            var main = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 10, 0, 12) };
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+
+            var actions = new SoftPanel { Dock = DockStyle.Fill, Padding = new Padding(24), Margin = new Padding(0, 0, 12, 0) };
+            var actionsLayout = new TableLayoutPanel { Tag = "transparent", Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1 };
+            actionsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            actionsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
+            actionsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
+            actionsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
+            actionsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            actionsLayout.Controls.Add(MakeLabel("Quick Actions", ThemeManager.SubtitleFont), 0, 0);
+            var resBtn = new PremiumButton { Text = "Rezervare noua cu locuri", Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8) };
+            resBtn.Click += (_, __) => new SeatReservationForm(_services).ShowDialog(this);
+            actionsLayout.Controls.Add(resBtn, 0, 1);
+
+            var saleBtn = new PremiumButton { Text = "Vanzare rapida produse", Variant = PremiumButtonVariant.Secondary, Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8) };
+            saleBtn.Click += (_, __) => new QuickSaleForm(_services).ShowDialog(this);
+            actionsLayout.Controls.Add(saleBtn, 0, 2);
+
+            var viewResBtn = new PremiumButton { Text = "Vizualizare rezervari", Variant = PremiumButtonVariant.Secondary, Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8) };
+            viewResBtn.Click += (_, __) => new ReservationsForm(_services).ShowDialog(this);
+            actionsLayout.Controls.Add(viewResBtn, 0, 3);
+
+            actions.Controls.Add(actionsLayout);
+            main.Controls.Add(actions, 0, 0);
+
+            var info = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Tag = "transparent" };
+            info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            info.Controls.Add(CreateNowPlayingCard(), 0, 0);
+            info.Controls.Add(CreateSystemStatusCard(), 0, 1);
+            main.Controls.Add(info, 1, 0);
+
+            root.Controls.Add(main, 0, 1);
+            return root;
         }
 
         private void ShowDashboard()
@@ -229,6 +325,18 @@ namespace CinePrime.UI.Forms
             _pageTitleLabel.Text = "Reports";
             SetContent(CreateReportsContent());
             ApplyNavStyle();
+        }
+
+        private void OpenSettings()
+        {
+            using (var form = new SettingsForm(_services))
+            {
+                form.ShowDialog(this);
+            }
+
+            ThemeManager.ApplyTheme(this);
+            ApplyNavStyle();
+            UpdateHeaderClock();
         }
 
         private void SetContent(Control content)
@@ -271,9 +379,9 @@ namespace CinePrime.UI.Forms
             {
                 kpis.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             }
-            kpis.Controls.Add(CreateKpiCard("Vanzari bilete azi", GetTicketSalesToday().ToString("0.00") + " MDL", "Rezervari confirmate"), 0, 0);
-            kpis.Controls.Add(CreateKpiCard("Popcorn azi", GetPopcornQuantityToday().ToString(), "Produse vandute"), 1, 0);
-            kpis.Controls.Add(CreateKpiCard("Ocupare saptamanala", GetWeeklyOccupancy().ToString("0") + "%", "Locuri rezervate"), 2, 0);
+            kpis.Controls.Add(CreateKpiCard("Vanzari bilete azi", GetTicketSalesToday().ToString("0.00") + " MDL", "Rezervari confirmate", "+8%"), 0, 0);
+            kpis.Controls.Add(CreateKpiCard("Popcorn azi", GetPopcornQuantityToday().ToString(), "Produse vandute", "+3%"), 1, 0);
+            kpis.Controls.Add(CreateKpiCard("Ocupare saptamanala", GetWeeklyOccupancy().ToString("0") + "%", "Locuri rezervate", "+5%"), 2, 0);
             kpis.Controls.Add(CreateKpiCard("Top film", GetTopMovieTitle(), "Rating maxim"), 3, 0);
             root.Controls.Add(kpis, 0, 0);
 
@@ -305,18 +413,17 @@ namespace CinePrime.UI.Forms
             return root;
         }
 
-        private Control CreateKpiCard(string title, string value, string subtitle)
+        private Control CreateKpiCard(string title, string value, string subtitle, string trend = "")
         {
-            var card = CreateDashboardCard(new Padding(0, 0, 18, 0), new Padding(26, 18, 26, 18));
-            var layout = new TableLayoutPanel { Tag = "transparent", Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            layout.Controls.Add(MakeLabel(title, ThemeManager.CaptionFont), 0, 0);
-            layout.Controls.Add(MakeLabel(value, new Font(ThemeManager.SubtitleFont.FontFamily, 24, FontStyle.Bold)), 0, 1);
-            layout.Controls.Add(MakeLabel(subtitle, ThemeManager.CaptionFont), 0, 2);
-            card.Controls.Add(layout);
-            return card;
+            return new KpiCard
+            {
+                Title = title,
+                Value = value,
+                Subtitle = subtitle,
+                Trend = trend,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 0, 14, 0)
+            };
         }
 
         private Control CreateInfoGrid()
@@ -404,7 +511,8 @@ namespace CinePrime.UI.Forms
             {
                 Dock = DockStyle.Fill,
                 Margin = margin,
-                Padding = padding
+                Padding = padding,
+                ShowGradient = true
             };
 
             return card;
@@ -488,19 +596,6 @@ namespace CinePrime.UI.Forms
             };
         }
 
-        private static void AddActivity(TableLayoutPanel layout, int row, string title, string subtitle, string time)
-        {
-            layout.Controls.Add(MakeLabel(title + Environment.NewLine + subtitle, ThemeManager.CaptionFont), 0, row);
-            layout.Controls.Add(new Label
-            {
-                Text = time,
-                Dock = DockStyle.Fill,
-                Font = ThemeManager.CaptionFont,
-                TextAlign = ContentAlignment.MiddleRight,
-                BackColor = Color.Transparent
-            }, 1, row);
-        }
-
         private void StartClock()
         {
             _clockTimer = new Timer { Interval = 1000 };
@@ -518,9 +613,12 @@ namespace CinePrime.UI.Forms
             _refreshTimer = new Timer { Interval = 30000 };
             _refreshTimer.Tick += (_, __) =>
             {
-                if (_activePage == "Dashboard")
+                if (_activePage == "Dashboard" || _activePage == "Home")
                 {
-                    SetContent(CreateDashboardContent());
+                    if (ApplicationSession.IsAdmin)
+                        SetContent(CreateDashboardContent());
+                    else
+                        SetContent(CreateOperatorHomeContent());
                 }
             };
             _refreshTimer.Start();
@@ -590,7 +688,7 @@ namespace CinePrime.UI.Forms
                 return;
             }
 
-            _headerInfoLabel.Text = $"{DateTime.Now:dddd, MMMM d, yyyy HH:mm:ss}    |    {ApplicationSession.CurrentUser?.FullName}";
+            _headerInfoLabel.Text = $"{DateTime.Now:dddd, MMMM d, yyyy HH:mm:ss}";
         }
 
 
@@ -647,13 +745,6 @@ namespace CinePrime.UI.Forms
             return _services.DbContext.Sales
                 .Where(s => s.CreatedAt.Date == DateTime.Today && (s.SaleType == "products" || s.SaleType == "mixed"))
                 .Sum(s => s.TotalAmount);
-        }
-
-        private decimal GetReservationTotal()
-        {
-            return _services.DbContext.Reservations
-                .Where(r => r.CreatedAt.Date == DateTime.Today && r.Status != "cancelled")
-                .Sum(r => r.TotalAmount);
         }
 
         private decimal GetTotalSalesToday()

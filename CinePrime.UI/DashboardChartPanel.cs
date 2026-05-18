@@ -12,6 +12,7 @@ namespace CinePrime.UI
         {
             Height = 190;
             Radius = 22;
+            ShowGradient = true;
         }
 
         public string ChartTitle { get; set; } = string.Empty;
@@ -58,6 +59,24 @@ namespace CinePrime.UI
                         return new PointF(x, y);
                     }).ToArray();
 
+                    if (points.Length > 1)
+                    {
+                        var areaPoints = new System.Collections.Generic.List<PointF>(points);
+                        areaPoints.Add(new PointF(points[^1].X, plot.Bottom));
+                        areaPoints.Add(new PointF(points[0].X, plot.Bottom));
+                        using (var areaPath = new GraphicsPath())
+                        using (var areaBrush = new LinearGradientBrush(
+                                   new RectangleF(plot.Left, plot.Top, plot.Width, plot.Height),
+                                   Color.FromArgb(55, ThemeManager.AccentColor),
+                                   Color.FromArgb(0, ThemeManager.AccentColor),
+                                   LinearGradientMode.Vertical))
+                        {
+                            areaPath.AddLines(areaPoints.ToArray());
+                            areaPath.CloseFigure();
+                            e.Graphics.FillPath(areaBrush, areaPath);
+                        }
+                    }
+
                     e.Graphics.DrawLines(linePen, points);
                     foreach (var point in points)
                     {
@@ -83,9 +102,15 @@ namespace CinePrime.UI
                         var height = (float)(Values[i] / max) * plot.Height;
                         var x = plot.Left + i * slotWidth + (slotWidth - barWidth) / 2f;
                         var y = plot.Bottom - height;
-                        using (var path = RoundedRect(new RectangleF(x, y, barWidth, height), 8))
+                        var barRect = new Rectangle((int)x, (int)y, (int)barWidth, Math.Max(1, (int)height));
+                        using (var barBrush = new LinearGradientBrush(
+                                   barRect,
+                                   ColorTranslator.FromHtml("#FF4D58"),
+                                   ColorTranslator.FromHtml("#B20710"),
+                                   LinearGradientMode.Vertical))
+                        using (var path = RoundedBarPath(barRect, 6))
                         {
-                            e.Graphics.FillPath(accentBrush, path);
+                            e.Graphics.FillPath(barBrush, path);
                         }
 
                         var valueLabel = FormatValue(Values[i]);
@@ -97,6 +122,28 @@ namespace CinePrime.UI
                         {
                             var labelSize = e.Graphics.MeasureString(Labels[i], ThemeManager.CaptionFont);
                             e.Graphics.DrawString(Labels[i], ThemeManager.CaptionFont, mutedBrush, x + (barWidth - labelSize.Width) / 2f, plot.Bottom + 12);
+                        }
+                    }
+                }
+
+                var maxIndex = Array.IndexOf(Values, Values.Max());
+                if (maxIndex >= 0)
+                {
+                    using (var maxBrush = new SolidBrush(ThemeManager.AccentColor))
+                    using (var maxFont = new Font(ThemeManager.BadgeFont.FontFamily, 9.5f, FontStyle.Bold))
+                    {
+                        if (DrawLine && Values.Length > 1)
+                        {
+                            var x = plot.Left + maxIndex * (plot.Width / (float)(Values.Length - 1));
+                            var y = plot.Bottom - (float)(Values[maxIndex] / max) * plot.Height;
+                            e.Graphics.DrawString(FormatValue(Values[maxIndex]), maxFont, maxBrush, x - 18, y - 42);
+                        }
+                        else
+                        {
+                            var slotWidth = plot.Width / (float)Values.Length;
+                            var barWidth = Math.Min(96, Math.Max(34, slotWidth * 0.42f));
+                            var x = plot.Left + maxIndex * slotWidth + (slotWidth - barWidth) / 2f;
+                            e.Graphics.DrawString(FormatValue(Values[maxIndex]), maxFont, maxBrush, x, valueBandTop - 18);
                         }
                     }
                 }
@@ -121,6 +168,18 @@ namespace CinePrime.UI
             path.AddArc(bounds.Right - d, bounds.Top, d, d, 270, 90);
             path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
             path.AddArc(bounds.Left, bounds.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private static GraphicsPath RoundedBarPath(Rectangle bounds, int radius)
+        {
+            var path = new GraphicsPath();
+            var d = radius * 2;
+            path.AddArc(bounds.Left, bounds.Top, d, d, 180, 90);
+            path.AddArc(bounds.Right - d, bounds.Top, d, d, 270, 90);
+            path.AddLine(bounds.Right, bounds.Top + radius, bounds.Right, bounds.Bottom);
+            path.AddLine(bounds.Right, bounds.Bottom, bounds.Left, bounds.Bottom);
             path.CloseFigure();
             return path;
         }

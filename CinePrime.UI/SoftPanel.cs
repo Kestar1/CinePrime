@@ -19,6 +19,7 @@ namespace CinePrime.UI
 
         public int Radius { get; set; } = 18;
         public bool HoverAccent { get; set; } = true;
+        public bool ShowGradient { get; set; }
 
         protected override void OnMouseEnter(System.EventArgs e)
         {
@@ -44,6 +45,20 @@ namespace CinePrime.UI
         {
             base.OnPaint(e);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            if (ShowGradient)
+            {
+                var rect = new Rectangle(0, 0, Width, Height);
+                var gradStart = ThemeManager.CurrentTheme == AppTheme.Dark
+                    ? Color.FromArgb(14, ThemeManager.AccentColor)
+                    : Color.FromArgb(6, ThemeManager.AccentColor);
+                using (var grad = new LinearGradientBrush(rect, gradStart, Color.Transparent, 135f))
+                using (var gradPath = CreatePath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))
+                {
+                    e.Graphics.FillPath(grad, gradPath);
+                }
+            }
+
             var border = _hover && HoverAccent ? ThemeManager.AccentColor : ThemeManager.BorderColor;
             using (var pen = new Pen(border, _hover && HoverAccent ? 1.5f : 1f))
             using (var path = CreatePath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))

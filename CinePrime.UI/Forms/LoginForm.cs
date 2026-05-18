@@ -22,10 +22,22 @@ namespace CinePrime.UI.Forms
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(900, 640);
             Padding = new Padding(0);
+            Opacity = 0;
+            Load += async (_, __) =>
+            {
+                for (double i = 0; i <= 1.0; i += 0.07)
+                {
+                    Opacity = i;
+                    await System.Threading.Tasks.Task.Delay(18);
+                }
+
+                Opacity = 1.0;
+            };
 
             var background = new CinematicBackgroundPanel
             {
-                Dock = DockStyle.Fill
+                Dock = DockStyle.Fill,
+                BackgroundPhoto = BackgroundAssets.GetAuthBackground()
             };
 
             var outer = new TableLayoutPanel
@@ -68,15 +80,17 @@ namespace CinePrime.UI.Forms
                 Dock = DockStyle.Fill,
                 Tag = "transparent",
                 Padding = new Padding(28, 34, 28, 34),
-                RowCount = 6,
+                RowCount = 7,
                 ColumnCount = 1
             };
+            brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
             brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-            brandPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            brandPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
+            brandPanel.Controls.Add(CreateLogoPanel(), 0, 0);
             brandPanel.Controls.Add(new Label
             {
                 Text = "CinePrime",
@@ -84,23 +98,23 @@ namespace CinePrime.UI.Forms
                 Dock = DockStyle.Fill,
                 Font = new Font(ThemeManager.TitleFont.FontFamily, 34, FontStyle.Bold),
                 TextAlign = ContentAlignment.BottomLeft
-            }, 0, 0);
+            }, 0, 1);
             brandPanel.Controls.Add(new Label
             {
                 Text = "Premium cinema management",
                 Dock = DockStyle.Fill,
                 Font = new Font(ThemeManager.BodyFont.FontFamily, 13, FontStyle.Regular),
                 TextAlign = ContentAlignment.TopLeft
-            }, 0, 1);
+            }, 0, 2);
             brandPanel.Controls.Add(new Label
             {
                 Text = "Live dashboard | Rezervari | Vanzari",
                 Dock = DockStyle.Fill,
                 Font = ThemeManager.CaptionFont,
                 TextAlign = ContentAlignment.MiddleLeft
-            }, 0, 2);
-            brandPanel.Controls.Add(CreateLoginStat("2 sali active", "Programari si locuri controlate rapid"), 0, 3);
-            brandPanel.Controls.Add(CreateLoginStat("460 MDL azi", "Demo cu date gata pentru testare"), 0, 4);
+            }, 0, 3);
+            brandPanel.Controls.Add(CreateLoginStat("2 sali active", "Programari si locuri controlate rapid"), 0, 4);
+            brandPanel.Controls.Add(CreateLoginStat("460 MDL azi", "Demo cu date gata pentru testare"), 0, 5);
 
             var layout = new TableLayoutPanel
             {
@@ -131,9 +145,13 @@ namespace CinePrime.UI.Forms
             layout.Controls.Add(spacer, 0, 2);
 
             _emailTextBox = new TextBox { PlaceholderText = "Email", Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8) };
+            _emailTextBox.Font = new Font(ThemeManager.BodyFont.FontFamily, 12);
+            _emailTextBox.Height = 46;
             layout.Controls.Add(_emailTextBox, 0, 3);
 
             _passwordTextBox = new TextBox { PlaceholderText = "Parola", UseSystemPasswordChar = true, Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 8) };
+            _passwordTextBox.Font = new Font(ThemeManager.BodyFont.FontFamily, 12);
+            _passwordTextBox.Height = 46;
             layout.Controls.Add(_passwordTextBox, 0, 4);
 
             var info = new Label
@@ -168,11 +186,12 @@ namespace CinePrime.UI.Forms
 
         private static Control CreateLoginStat(string value, string label)
         {
-            var panel = new GlassPanel
+            var panel = new SoftPanel
             {
                 Dock = DockStyle.Fill,
                 Radius = 18,
-                FillAlpha = 96,
+                ShowGradient = true,
+                HoverAccent = true,
                 Padding = new Padding(16, 8, 16, 8),
                 Margin = new Padding(0, 6, 0, 6)
             };
@@ -197,29 +216,65 @@ namespace CinePrime.UI.Forms
             return panel;
         }
 
+        private static Control CreateLogoPanel()
+        {
+            var logoPanel = new Panel { Width = 52, Height = 52, BackColor = Color.Transparent, Margin = new Padding(0, 0, 0, 8), Tag = "transparent" };
+            logoPanel.Paint += (_, pe) =>
+            {
+                pe.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                var rect = new Rectangle(2, 2, 48, 48);
+                using (var grad = new System.Drawing.Drawing2D.LinearGradientBrush(
+                           rect,
+                           ColorTranslator.FromHtml("#FF1F2D"),
+                           ColorTranslator.FromHtml("#7A000A"),
+                           135f))
+                using (var pen = new Pen(Color.FromArgb(80, Color.White), 1.5f))
+                {
+                    pe.Graphics.FillEllipse(grad, rect);
+                    pe.Graphics.DrawEllipse(pen, rect);
+                }
+
+                TextRenderer.DrawText(
+                    pe.Graphics,
+                    "CP",
+                    new Font(ThemeManager.ButtonFont.FontFamily, 13, FontStyle.Bold),
+                    rect,
+                    Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            };
+            return logoPanel;
+        }
+
         private void OnLoginClick(object sender, EventArgs e)
         {
-            var sessionUser = _services.AuthService.Login(_emailTextBox.Text, _passwordTextBox.Text);
-            if (sessionUser == null)
+            try
             {
-                MessageBox.Show("Email/parola invalida sau cont inactiv.", "Login esuat");
-                return;
-            }
+                var sessionUser = _services.AuthService.Login(_emailTextBox.Text, _passwordTextBox.Text);
+                if (sessionUser == null)
+                {
+                    UiFeedback.ShowWarning(this, "Email/parola invalida sau cont inactiv.", "Login esuat");
+                    return;
+                }
 
-            ApplicationSession.SignIn(sessionUser);
-            ThemeManager.SetTheme(
-                string.Equals(sessionUser.ThemePreference, "light", StringComparison.OrdinalIgnoreCase)
-                    ? AppTheme.Light
-                    : AppTheme.Dark);
-            Hide();
-            using (var dashboard = new DashboardForm(_services))
+                ApplicationSession.SignIn(sessionUser);
+                ThemeManager.SetTheme(
+                    string.Equals(sessionUser.ThemePreference, "light", StringComparison.OrdinalIgnoreCase)
+                        ? AppTheme.Light
+                        : AppTheme.Dark);
+                Hide();
+                using (var dashboard = new DashboardForm(_services))
+                {
+                    dashboard.ShowDialog();
+                }
+
+                ApplicationSession.SignOut();
+                _passwordTextBox.Text = string.Empty;
+                Show();
+            }
+            catch (Exception ex)
             {
-                dashboard.ShowDialog();
+                UiFeedback.ShowException(this, ex, "Autentificarea nu a putut fi finalizata.");
             }
-
-            ApplicationSession.SignOut();
-            _passwordTextBox.Text = string.Empty;
-            Show();
         }
 
         private void OnRegisterClick(object sender, EventArgs e)
